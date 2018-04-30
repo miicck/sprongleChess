@@ -1,40 +1,48 @@
-// Initialzie Async must resolve
-// before we can load the game
-FBInstant.initializeAsync()
-    .then(function () {
-        console.log("FBInstant.initializeAsync resolved")
-        startup.load();
-    });
-
 // Namespace startup
-var startup = {
+var startup = (function () {
 
-    // Load the game assets etc
-    load: function () {
-        console.log("Loading started...");
+    // Check if we're running locally for development purposes
+    if (window.location.protocol == 'file:') {
+        console.log("Running locally");
+        game.start("sprongle");
+    }
+    else FBInstant.initializeAsync()
+        .then(function () {
+            // Initialzie Async must resolve
+            // before we can load the game
+            console.log("FBInstant.initializeAsync resolved")
+            startup.load();
+        });
 
-        // Informs the SDK of loading progress
-        FBInstant.setLoadingProgress(100); // 100% progress, we aren't loading anything
+    // Public API
+    return {
+        // Load the game assets etc
+        load: function () {
+            console.log("Loading started...");
 
-        console.log("...Loading finished");
+            // Informs the SDK of loading progress
+            FBInstant.setLoadingProgress(100); // 100% progress, we aren't loading anything
 
-        // Once all assets are loaded, tells the SDK 
-        // to end loading view and start the game
-        FBInstant.startGameAsync()
-            .then(function () {
-                // Retrieving context and player information can only be done
-                // once startGameAsync() resolves
-                var contextId = FBInstant.context.getID();
-                var contextType = FBInstant.context.getType();
+            console.log("...Loading finished");
 
-                var playerName = FBInstant.player.getName();
-                var playerPic = FBInstant.player.getPhoto();
-                var playerId = FBInstant.player.getID();
+            // Once all assets are loaded, tells the SDK 
+            // to end loading view and start the game
+            FBInstant.startGameAsync()
+                .then(function () {
+                    // Retrieving context and player information can only be done
+                    // once startGameAsync() resolves
+                    var contextId = FBInstant.context.getID();
+                    var contextType = FBInstant.context.getType();
 
-                // Once startGameAsync() resolves it also means the loading view has 
-                // been removed and the user can see the game viewport
-                game.start(playerName);
-            });
+                    var playerName = FBInstant.player.getName();
+                    var playerPic = FBInstant.player.getPhoto();
+                    var playerId = FBInstant.player.getID();
+
+                    // Once startGameAsync() resolves it also means the loading view has 
+                    // been removed and the user can see the game viewport
+                    game.start(playerName);
+                });
+        }
     }
 
-} // End namespace startup
+}()); // End namespace startup

@@ -1,29 +1,38 @@
-var game = (function () { // Namespace game
+// Namespace game
+var game = (function () {
 
     // The chess board
-    var chess = new Chess();
+    var board = new Chess();
+
+    // The player and opponent
+    var playerName = "sprongle";
+    var oppenentName = "sprongle";
 
     // Redraw the board
     function redrawBoard() {
         var main = document.getElementById("main");
-        main.innerHTML = chess.ascii().replace(/(?:\r\n|\r|\n)/g, '<br>');
+        main.innerHTML =
+            playerName + " vs. " + oppenentName +
+            "<br><br>" +
+            board.ascii().replace(/(?:\r\n|\r|\n)/g, '<br>');
     };
 
     // One game tick
     function tick() {
-        if (chess.game_over())
-            chess = new Chess();
-        var moves = chess.moves();
+        if (board.game_over())
+            board = new Chess();
+        var moves = board.moves();
         var move = moves[Math.floor(Math.random() * moves.length)];
-        chess.move(move);
+        board.move(move);
         redrawBoard();
     };
 
     // Public API
     return {
-        start: function (playerName) {
+        start: function (playerNameIn) {
             console.log("Starting game");
-            console.log("Player: " + playerName);
+            console.log("Player: " + playerNameIn);
+            playerName = playerNameIn;
             setInterval(tick, 500);
         }
     }
