@@ -1,5 +1,10 @@
 body
 {
-    background-color: blueviolet;
-    color: red;
+    background-color: white;
 }
+
+#main
+{
+    font-family: monospace;
+}
+
