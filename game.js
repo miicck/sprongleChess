@@ -1,21 +1,8 @@
 // Namespace game
 var game = (function () {
 
-    // The chess board
-    var board = new Chess();
-
-    // The player and opponent
-    var playerName = "sprongle";
-    var oppenentName = "sprongle";
-
-    // Redraw the board
-    function redrawBoard() {
-        var main = document.getElementById("main");
-        main.innerHTML =
-            playerName + " vs. " + oppenentName +
-            "<br><br>" +
-            board.ascii().replace(/(?:\r\n|\r|\n)/g, '<br>');
-    };
+    var board = new Chess(); // The chess board  
+    var playerInfo;          // Info about the player
 
     // One game tick
     function tick() {
@@ -24,16 +11,17 @@ var game = (function () {
         var moves = board.moves();
         var move = moves[Math.floor(Math.random() * moves.length)];
         board.move(move);
-        redrawBoard();
+        ui.updateBoard(board);
     };
 
     // Public API
     return {
-        start: function (playerNameIn) {
+        start: function (playerInfoIn) {
             console.log("Starting game");
-            console.log("Player: " + playerNameIn);
-            playerName = playerNameIn;
-            setInterval(tick, 500);
+            console.log(playerInfoIn);
+            playerInfo = playerInfoIn;
+            ui.initialize(playerInfo);
+            setInterval(tick, 2000);
         }
     }
 
