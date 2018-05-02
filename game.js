@@ -22,7 +22,6 @@ var game = (function () {
         pieces[x][y] = p;
         boardArea.appendChild(p);
         p.onclick = function () {
-            console.log("Selected piece " + pieceInfo.color + " " + pieceInfo.name)
             if (selectedPiece != null)
                 selectedPiece.id = "";
             selectedPiece = p;
@@ -58,11 +57,20 @@ var game = (function () {
                     });
                     updateBoardUI();
                     setMoveOptions([]);
+                    replyWithMove();
                 }
             })(xy);
             moveOptions.push(mv);
             boardArea.appendChild(mv);
         }
+    }
+
+    // Reply with a random move
+    function replyWithMove() {
+        var moves = board.moves();
+        var move = moves[Math.floor(Math.random() * moves.length)];
+        board.move(move);
+        updateBoardUI();
     }
 
     // Setup a player info section
@@ -161,17 +169,6 @@ var game = (function () {
             }
     }
 
-    // One game tick
-    function tick() {
-        if (board.game_over())
-            board = new Chess();
-        var moves = board.moves();
-        var move = moves[Math.floor(Math.random() * moves.length)];
-        //board.move(move);
-        //sound.playSound("sound/move.mp3");
-        //ui.updateBoard(board);
-    }
-
     // Go from x,y to a,n notation, i.e 0,1 -> a7
     function xyToAn(x, y) {
         return String.fromCharCode(97 + y) + "" + (8 - x);
@@ -188,7 +185,10 @@ var game = (function () {
 
     // Return the css transform needed to place something at x,y
     function xyToTransform(x, y) {
-        return "translate(" + y * 12.5 + "vw," + x * 12.5 + "vw)";
+        if (playerInfo.playingAs == "white")
+            return "translate(" + y * 12.5 + "vw," + x * 12.5 + "vw)";
+        else
+            return "translate(" + y * 12.5 + "vw," + (7 - x) * 12.5 + "vw)";
     }
 
     // Convert p -> pawn etc.
@@ -225,6 +225,8 @@ var game = (function () {
             console.log(playerInfoIn);
             playerInfo = playerInfoIn;
             initializeUI();
+            if (playerInfo.playingAs == "black")
+                replyWithMove();
             updateBoardUI();
             setInterval(tick, 200);
         },

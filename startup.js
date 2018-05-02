@@ -1,6 +1,12 @@
 // Namespace startup
 var startup = (function () {
 
+    // Pick a random color
+    function randomColor() {
+        if (Math.random() < 0.5) return "white";
+        else return "black";
+    }
+
     // Check if we're running locally for development purposes
     if (window.location.protocol == 'file:') {
         console.log("Running locally");
@@ -9,6 +15,7 @@ var startup = (function () {
             id: 0,
             picture: "img/grandfatherHector.png",
             elo: 1500,
+            playingAs: randomColor(),
         });
     }
     else FBInstant.initializeAsync()
@@ -46,6 +53,7 @@ var startup = (function () {
                         id: FBInstant.player.getID(),
                         picture: FBInstant.player.getPhoto(),
                         elo: 1500,
+                        playingAs: randomColor(),
                     });
                 });
         }
