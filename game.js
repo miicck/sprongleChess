@@ -19,6 +19,7 @@ var game = (function () {
         return playerInfo.playingAs == getLongColor(board.turn());
     }
 
+    // Make the given move
     function makeMove(move) {
         board.move(move);
         updateBoardUI();
@@ -197,7 +198,7 @@ var game = (function () {
         if (playerInfo.playingAs == "white")
             return "translate(" + y * 12.5 + "vw," + x * 12.5 + "vw)";
         else
-            return "translate(" + y * 12.5 + "vw," + (7 - x) * 12.5 + "vw)";
+            return "translate(" + (7 - y) * 12.5 + "vw," + (7 - x) * 12.5 + "vw)";
     }
 
     // Convert p -> pawn etc.
