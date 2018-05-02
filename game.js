@@ -24,9 +24,9 @@ var game = (function () {
         p.onclick = function () {
             console.log("Selected piece " + pieceInfo.color + " " + pieceInfo.name)
             if (selectedPiece != null)
-                selectedPiece.style.backgroundColor = null;
+                selectedPiece.id = "";
             selectedPiece = p;
-            p.style.backgroundColor = "rgba(0,100,0,0.4)";
+            p.id = "selected";
             var mvs = board.moves({ square: xyToAn(x, y), verbose: true });
             var allMoves = [];
             for (var i in mvs) {

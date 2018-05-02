@@ -20,12 +20,16 @@ div.piece{
     width: 12.5vw;
 }
 
+div.piece#selected{
+    background-color: rgba(20,85,30,.5);
+}
+
 div.moveOption{
     background-size: cover;
     position: absolute;
     height: 12.5vw;
     width: 12.5vw;
-    background-image: url("img/moveCircle.svg");    
+    background: radial-gradient(rgba(20,85,30,0.3) 17%,#208530 0,rgba(0,0,0,0.3) 0,rgba(0,0,0,0) 0);
 }
 
 div.player{
