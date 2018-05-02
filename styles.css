@@ -1,19 +1,16 @@
 body{
     margin: 0px;
     padding: 0px;
+    font-family: monospace;
+    color: #ccc;
+    background-color: #777;
 }
 
-div.board
-{
+div.board{
     width: 100vw;
     height: 100vw;
     background-image: url("img/board_brown.svg");
-}
-
-div.player{
-    width: 100vw;
-    height: 10vw;
-    background-color: lightgray;
+    box-shadow: 0px 0px 5px black;
 }
 
 div.piece{
@@ -21,4 +18,76 @@ div.piece{
     position: absolute;
     height: 12.5vw;
     width: 12.5vw;
+}
+
+div.moveOption{
+    background-size: cover;
+    position: absolute;
+    height: 12.5vw;
+    width: 12.5vw;
+    background-image: url("img/moveCircle.svg");    
+}
+
+div.player{
+    width: 100vw;
+    height: 20vw;
+    font-size: 5vw;
+    padding-top: 2vw;
+    padding-bottom: 2vw;
+}
+
+div.player img.player{
+    float: left;
+    margin-left: 2vw;
+    height: 16vw;
+    box-shadow: 0px 0px 5px black;
+}
+
+div.player div.nameArea{
+    float: left;
+    padding-left: 2vw;
+    height: 100%;
+}
+
+div.player div.clock{
+    float: right;
+    padding-right: 5vw;
+}
+
+div.info{
+    height: 7vw;
+    font-size: 5vw;
+    color: #333;
+    background-color: #ccc;
+    text-align: center;  
+    box-shadow: 0px 0px 5px black;
+}
+
+div.gameSettings{
+    position: absolute;
+    top: 7vw;
+    left: 0px;
+    width: 100vw;
+    height: 100vw;
+    background-color: rgba(1,1,1,0.8);
+}
+
+div.toggle{
+    width: 20vw;
+    height: 10vw;
+    background-color: grey;
+    border-radius: 5vw;
+}
+
+#options{
+    float: right;
+    height: 7vw;
+    padding: 1vw;
+    font-size: 5vw;
+    width: 7vw;
+}
+
+#options:hover{
+    color: black;
+    cursor: pointer;
 }

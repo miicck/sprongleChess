@@ -5,9 +5,10 @@ var startup = (function () {
     if (window.location.protocol == 'file:') {
         console.log("Running locally");
         game.start({
-            name: "sprongle",
+            name: "Sprongle",
             id: 0,
             picture: "img/grandfatherHector.png",
+            elo: 1500,
         });
     }
     else FBInstant.initializeAsync()
@@ -44,6 +45,7 @@ var startup = (function () {
                         name: FBInstant.player.getName(),
                         id: FBInstant.player.getID(),
                         picture: FBInstant.player.getPhoto(),
+                        elo: 1500,
                     });
                 });
         }
