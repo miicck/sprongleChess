@@ -1,0 +1,10 @@
+{
+  "instant_games": {
+    "platform_version": "RICH_GAMEPLAY",
+    "custom_update_templates": {
+      "accept_challenge": {
+        "example": "You were challenged"
+      }
+    }
+  }
+}

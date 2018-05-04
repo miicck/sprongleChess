@@ -3,6 +3,7 @@ var game = (function () {
 
     var board = new Chess(); // The chess board
     var playerInfo;          // Info about the player
+    var opponentInfo;        // Info about the oppenent
     var promotonMenuOpen = false;
 
     // DOM elements
@@ -19,12 +20,30 @@ var game = (function () {
         return playerInfo.playingAs == getLongColor(board.turn());
     }
 
+    // Returns true if we're running the local dev version
+    function localVersion() {
+        return window.location.protocol == 'file:'
+    }
+
     // Make the given move
     function makeMove(move) {
         board.move(move);
         updateBoardUI();
         setMoveOptions([]);
         replyWithMove();
+        getBoardStateFromServer();
+    }
+
+    // Get my board state from the server
+    function getBoardStateFromServer() {
+        console.log("requesting board state");
+        var xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function () {
+            if (this.readyState == 4 && this.status == 200) {
+                console.log("response: " + this.responseText);
+            }
+        };
+        xhttp.open("GET", "http://icsd.cds.rsc.org/search/basic.xhtml");
     }
 
     // Build a pice from a pieceInfo structure
@@ -131,7 +150,7 @@ var game = (function () {
 
     // Create a promotor
     function createPromotor(promotorInfo) {
-        console.log(promotorInfo.x);
+
         var prom = document.createElement("div");
         prom.className = "promotion";
         prom.style.transform = xyToTransform(promotorInfo.x, promotorInfo.y);
@@ -265,7 +284,7 @@ var game = (function () {
 
         opponentArea = document.createElement("div");
         opponentArea.className = "player";
-        setupPlayerInfo(opponentArea, playerInfo);
+        setupPlayerInfo(opponentArea, opponentInfo);
 
         playerArea = document.createElement("div");
         playerArea.className = "player";
@@ -305,10 +324,10 @@ var game = (function () {
     // Public API
     return {
         // Start the game
-        start: function (playerInfoIn) {
+        start: function (playerInfoIn, opponentInfoIn) {
             console.log("Starting game");
-            console.log(playerInfoIn);
             playerInfo = playerInfoIn;
+            opponentInfo = opponentInfoIn;
             initializeUI();
             if (playerInfo.playingAs == "black") replyWithMove();
             updateBoardUI();
