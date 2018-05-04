@@ -14,6 +14,7 @@ var game = (function () {
     var opponentArea;  // The DOM element representing the opponent
     var playerArea;    // The DOM element representing the player
     var settingsMenu;  // The DOM element representing the settings window (if it's open)  
+    var lastOpponentMove; // The DOM element representing where the last opponent move came from
 
     // Returns true if it is my turn
     function myTurn() {
@@ -31,19 +32,6 @@ var game = (function () {
         updateBoardUI();
         setMoveOptions([]);
         replyWithMove();
-        getBoardStateFromServer();
-    }
-
-    // Get my board state from the server
-    function getBoardStateFromServer() {
-        console.log("requesting board state");
-        var xhttp = new XMLHttpRequest();
-        xhttp.onreadystatechange = function () {
-            if (this.readyState == 4 && this.status == 200) {
-                console.log("response: " + this.responseText);
-            }
-        };
-        xhttp.open("GET", "http://icsd.cds.rsc.org/search/basic.xhtml");
     }
 
     // Build a pice from a pieceInfo structure
@@ -171,10 +159,32 @@ var game = (function () {
 
     // Opponent makes a move
     function replyWithMove() {
-        var moves = board.moves();
+        var moves = board.moves({ verbose: true });
         var move = moves[Math.floor(Math.random() * moves.length)];
         board.move(move);
+        highlightLastOpponentMove(move);
         updateBoardUI();
+    }
+
+    // Set the last move positions
+    function highlightLastOpponentMove(move) {
+        if (lastOpponentMove != null)
+            for (var i in lastOpponentMove)
+                lastOpponentMove[i].remove();
+        lastOpponentMove = [];
+
+        var xyf = anToXy(move.from);
+        var xyt = anToXy(move.to);
+        createLastMoveHighlight(xyf);
+        createLastMoveHighlight(xyt);
+    }
+
+    function createLastMoveHighlight(xy) {
+        var from = document.createElement("div");
+        from.className = "lastMove";
+        from.style.transform = xyToTransform(xy.x, xy.y);
+        lastOpponentMove.push(from);
+        boardArea.appendChild(from);
     }
 
     // Update the chessboard

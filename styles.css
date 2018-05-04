@@ -13,7 +13,7 @@ div.board{
     box-shadow: 0px 0px 5px black;
 }
 
-div.piece, div.promotion{
+div.piece, div.promotion, div.lastMove, div.moveOption{
     background-size: cover;
     position: absolute;
     height: 12.5vw;
@@ -35,11 +35,11 @@ div.promotion:hover{
     border-radius: 0%;
 }
 
+div.lastMove{
+    background-color: rgba(155,199,0,.41)
+}
+
 div.moveOption{
-    background-size: cover;
-    position: absolute;
-    height: 12.5vw;
-    width: 12.5vw;
     background: radial-gradient(rgba(20,85,30,0.3) 17%,#208530 0,rgba(0,0,0,0.3) 0,rgba(0,0,0,0) 0);
 }
 

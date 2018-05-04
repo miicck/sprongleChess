@@ -38,29 +38,23 @@ var startup = (function () {
         .then(function () {
             // Initialzie Async must resolve
             // before we can load the game
-            console.log("FBInstant.initializeAsync resolved")
             load();
         });
 
     // Load the game assets etc
     function load() {
-        console.log("Loading started...");
+
+        console.log("Loading game");
 
         // Informs the SDK of loading progress
         FBInstant.setLoadingProgress(100); // 100% progress, we aren't loading anything
-
-        console.log("...Loading finished");
 
         // Once all assets are loaded, tells the SDK 
         // to end loading view and start the game
         FBInstant.startGameAsync()
             .then(function () {
-                // Retrieving context and player information can only be done
-                // once startGameAsync() resolves
-                var contextId = FBInstant.context.getID();
-                var contextType = FBInstant.context.getType();
-                var color = randomColor();
 
+                // Attempt to challenge a player
                 try {
                     FBInstant.updateAsync({
                         action: 'CUSTOM',
@@ -85,7 +79,14 @@ var startup = (function () {
                     console.log("Challenge update error: " + e);
                 }
 
-                FBInstant.player.getConnectedPlayersAsync()
+                // Retrieving context and player information can only be done
+                // once startGameAsync() resolves
+                var contextId = FBInstant.context.getID();
+                var contextType = FBInstant.context.getType();
+                var color = randomColor();
+                console.log("Context: " + contextId + " type: " + contextType);
+
+                FBInstant.context.getPlayersAsync()
                     .then(function (opponents) {
                         var opponent = opponents[0].$1;
                         game.start({
@@ -104,6 +105,7 @@ var startup = (function () {
                             });
                     });
             });
+        //});
     }
 
 }()); // End namespace startup
