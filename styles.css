@@ -1,7 +1,7 @@
 body{
     margin: 0px;
     padding: 0px;
-    font-family: monospace;
+    font-family: Arial, Helvetica, sans-serif;
     color: #ccc;
     background-color: #777;
 }
@@ -71,6 +71,22 @@ div.player div.nameArea{
 div.player div.clock{
     float: right;
     padding-right: 5vw;
+}
+
+div.elo#stockfishDepth{
+    cursor: pointer;
+}
+
+#stockfishDepth select{
+    border: none;
+    background-color: rgba(255,255,255,0.1);
+    color: inherit;
+    font-size: inherit;
+}
+
+option
+{
+    color: black;
 }
 
 div.info{

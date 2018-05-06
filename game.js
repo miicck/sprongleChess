@@ -1,10 +1,12 @@
 // Namespace game
 var game = (function () {
 
-    var board = new Chess(); // The chess board
-    var playerInfo;          // Info about the player
-    var opponentInfo;        // Info about the oppenent
-    var promotonMenuOpen = false;
+    var board = new Chess();      // The chess board
+    var playerInfo;               // Info about the player
+    var opponentInfo;             // Info about the oppenent
+    var promotonMenuOpen = false; // Is the promotion menu open?
+    var stockfish;                // The stockfish chess engine
+
 
     // DOM elements
     var pieces;        // The DOM elements representing the pieces
@@ -15,6 +17,8 @@ var game = (function () {
     var playerArea;    // The DOM element representing the player
     var settingsMenu;  // The DOM element representing the settings window (if it's open)  
     var lastOpponentMove; // The DOM element representing where the last opponent move came from
+    var stockFishDepthMenu; // The DOM element menu for the depth which the engine thinks to
+    var stockFishSkillMenu; // The DOM element for the skill of stockfish
 
     // Returns true if it is my turn
     function myTurn() {
@@ -24,14 +28,6 @@ var game = (function () {
     // Returns true if we're running the local dev version
     function localVersion() {
         return window.location.protocol == 'file:'
-    }
-
-    // Make the given move
-    function makeMove(move) {
-        board.move(move);
-        updateBoardUI();
-        setMoveOptions([]);
-        replyWithMove();
     }
 
     // Build a pice from a pieceInfo structure
@@ -157,12 +153,61 @@ var game = (function () {
         boardArea.appendChild(prom);
     }
 
+    // Player makes the given move
+    function makeMove(move) {
+        board.move(move);
+        updateBoardUI();
+        setMoveOptions([]);
+        replyWithMove();
+
+        return;
+        var x = new XMLHttpRequest();
+        x.open('POST', 'http://sprongle.com', true);
+        x.onreadystatechange = function () {
+            console.log("hello");
+        };
+        try { x.send(); }
+        catch (e) { console.log(e); }
+    }
+
     // Opponent makes a move
     function replyWithMove() {
-        var moves = board.moves({ verbose: true });
-        var move = moves[Math.floor(Math.random() * moves.length)];
-        board.move(move);
-        highlightLastOpponentMove(move);
+
+        var msgs = [
+            "position fen " + board.fen(),
+            "setoption name Skill Level value " + stockFishSkillMenu.value,
+            "go depth " + stockFishDepthMenu.value
+        ];
+
+        var debug = "";
+
+        for (i in msgs) {
+            debug += msgs[i] + "\n";
+            stockfish.postMessage(msgs[i]);
+        }
+
+        // Things to play with later
+        //'setoption name Skill Level Maximum Error value ' + max_err;
+        //'setoption name Skill Level Probability value ' + err_prob;
+
+        console.log("Sent stockfish commands:\n" + debug);
+    }
+
+    // Make best move from stockfish event data
+    function makeBestMove(event) {
+        var moveData = String(event.data ? event.data : event);
+        var splt = moveData.split(" ");
+        var bestMove = null;
+        for (i in splt)
+            if (splt[i] == "bestmove") {
+                bestMove = splt[parseInt(i) + 1];
+                console.log(bestMove);
+            }
+        if (bestMove == null) return;
+        board.move(bestMove, { sloppy: true });
+        var from = bestMove.charAt(0) + bestMove.charAt(1);
+        var to = bestMove.charAt(2) + bestMove.charAt(3);
+        highlightLastOpponentMove({ from: from, to: to });
         updateBoardUI();
     }
 
@@ -275,6 +320,31 @@ var game = (function () {
         var elo = document.createElement("div");
         elo.className = "elo";
         elo.innerHTML = info.elo;
+        if (info.name == "Stockfish") {
+            elo.id = "stockfishDepth";
+            elo.innerHTML = "";
+
+            stockFishSkillMenu = document.createElement("select");
+            for (var i = 0; i < 21; ++i) {
+                var opt = document.createElement("option");
+                opt.value = i;
+                opt.innerHTML = i;
+                stockFishSkillMenu.appendChild(opt);
+            }
+
+            stockFishDepthMenu = document.createElement("select");
+            for (var i = 1; i < 31; ++i) {
+                var opt = document.createElement("option");
+                opt.value = i;
+                opt.innerHTML = i;
+                stockFishDepthMenu.appendChild(opt);
+            }
+
+            elo.innerHTML += "Skill: ";
+            elo.appendChild(stockFishSkillMenu);
+            elo.innerHTML += " depth: ";
+            elo.appendChild(stockFishDepthMenu);
+        }
         nameArea.appendChild(elo);
 
         var clock = document.createElement("div");
@@ -338,6 +408,10 @@ var game = (function () {
             console.log("Starting game");
             playerInfo = playerInfoIn;
             opponentInfo = opponentInfoIn;
+            stockfish = new STOCKFISH();
+            stockfish.onmessage = function (event) {
+                makeBestMove(event);
+            };
             initializeUI();
             if (playerInfo.playingAs == "black") replyWithMove();
             updateBoardUI();

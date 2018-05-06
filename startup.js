@@ -27,10 +27,10 @@ var startup = (function () {
             playingAs: color,
         },
             {
-                name: "Grandfather hector",
+                name: "Stockfish",
                 id: 0,
-                picture: "img/grandfatherHector.png",
-                elo: 1500,
+                picture: "img/stockfish.png",
+                elo: 0,
                 playingAs: otherColor(color),
             });
     }
