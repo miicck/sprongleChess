@@ -73,11 +73,11 @@ div.player div.clock{
     padding-right: 5vw;
 }
 
-div.elo#stockfishDepth{
+div.elo#stockfishLevel{
     cursor: pointer;
 }
 
-#stockfishDepth select{
+#stockfishLevel select{
     border: none;
     background-color: rgba(255,255,255,0.1);
     color: inherit;
