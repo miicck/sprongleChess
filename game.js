@@ -47,9 +47,16 @@ var game = (function () {
             if (promotonMenuOpen) return; // A promotion menu is open, don't allow clicking on pieces
             if (pieceInfo.color != playerInfo.playingAs) return; // This isn't my piece
             if (selectedPiece != null) selectedPiece.id = null;  // Deselect old piece
-            selectedPiece = p;
-            p.id = "selected";
-            setMoveOptions(board.moves({ square: xyToAn(x, y), verbose: true }));
+            if (selectedPiece == this) {
+                selectedPiece = null;
+                setMoveOptions([]);
+            } 
+            else 
+            {
+                selectedPiece = p;
+                p.id = "selected";
+                setMoveOptions(board.moves({ square: xyToAn(x, y), verbose: true }));
+            }     
         }
     }
 
@@ -177,7 +184,7 @@ var game = (function () {
         ratio = (level - 1) / 9;
 
         params = {
-            depth: Math.floor(1 + ratio * 10),
+            depth: Math.floor(1 + ratio * 9),
             skill: Math.floor(ratio * 20),
             maxError: ratio * 5000,
             probability: ratio * 1000
