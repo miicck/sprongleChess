@@ -6,7 +6,6 @@ var game = (function () {
     var opponentInfo;             // Info about the oppenent
     var promotonMenuOpen = false; // Is the promotion menu open?
 
-
     // DOM elements
     var pieces;             // The DOM elements representing the pieces
     var selectedPiece;      // The DOM element representing the selected piece
@@ -17,6 +16,25 @@ var game = (function () {
     var settingsMenu;       // The DOM element representing the settings window (if it's open)  
     var lastOpponentMove;   // The DOM element representing where the last opponent move came from
     var stockFishLevelMenu; // The DOM element for the skill of stockfish
+
+    // Allow switching on/off debug messages
+    function log(thing, tag) {
+
+        var acceptedTags = [
+            //"server",
+            //"ui",
+        ];
+
+        var accepted = false;
+        for (var i in acceptedTags)
+            if (acceptedTags[i] == tag) {
+                accepted = true;
+                break;
+            }
+
+        if (accepted)
+            console.log(thing);
+    }
 
     // Returns true if it is my turn
     function myTurn() {
@@ -50,18 +68,19 @@ var game = (function () {
             if (selectedPiece == this) {
                 selectedPiece = null;
                 setMoveOptions([]);
-            } 
-            else 
-            {
+            }
+            else {
                 selectedPiece = p;
                 p.id = "selected";
                 setMoveOptions(board.moves({ square: xyToAn(x, y), verbose: true }));
-            }     
+            }
         }
     }
 
     // Set move options
     function setMoveOptions(moves) {
+
+        log("move options: " + moves.length, "ui");
 
         // Remove previous move options
         if (moveOptions != null)
@@ -165,20 +184,18 @@ var game = (function () {
         updateBoardUI();
         setMoveOptions([]);
         replyWithMove();
-
-        return;
-        var x = new XMLHttpRequest();
-        x.open('POST', 'http://sprongle.com', true);
-        x.onreadystatechange = function () {
-            console.log("hello");
-        };
-        try { x.send(); }
-        catch (e) { console.log(e); }
     }
 
     // Opponent makes a move
     function replyWithMove() {
+        if (opponentInfo.name == "Stockfish") {
+            stockfishReplyWithMove();
+            return;
+        }
+    }
 
+    // Stockfish replys with a move
+    function stockfishReplyWithMove() {
         var params = level = stockFishLevelMenu.value;
 
         ratio = (level - 1) / 9;
@@ -204,7 +221,7 @@ var game = (function () {
         var stockfish = new STOCKFISH();
         //stockfish.postMessage("uci");
         stockfish.onmessage = function (event) {
-            console.log(event);
+            //console.log(event);
             makeBestMove(event);
         };
 
@@ -212,7 +229,7 @@ var game = (function () {
             debug += msgs[i] + "\n";
             stockfish.postMessage(msgs[i]);
         }
-        console.log("Sent stockfish commands:\n" + debug);
+        //console.log("Sent stockfish commands:\n" + debug);
     }
 
     // Make best move from stockfish event data
@@ -223,7 +240,7 @@ var game = (function () {
         for (i in splt)
             if (splt[i] == "bestmove") {
                 bestMove = splt[parseInt(i) + 1];
-                console.log(bestMove);
+                //console.log(bestMove);
             }
         if (bestMove == null) return;
         board.move(bestMove, { sloppy: true });
@@ -413,6 +430,118 @@ var game = (function () {
         document.body.appendChild(playerArea);
     }
 
+    // Send the server a message
+    function sendServerMessage(message, successHandler, failureHandler) {
+        log("Sending message to sprongle.com ...\n" + message, "server");
+        var x = new XMLHttpRequest();
+        x.open('POST', 'http://sprongle.com', true);
+        x.onload = function () {
+            log("Response from sprongle.com:", "server");
+            log(x.response, "server");
+            if (x.responseText.startsWith("success"))
+                successHandler(x);
+            else
+                failureHandler(x);
+        };
+        try { x.send(message); }
+        catch (e) {
+            console.log("server error:");
+            console.log(e);
+        }
+    }
+
+    // Get the response of the form "header : response" in message
+    function parseServerResponseFor(message, header) {
+        var splt = message.split("\n");
+        for (var i in splt) {
+            if (splt[i].startsWith(header))
+                return splt[i].split(":")[1].trim();
+        }
+        return null;
+    }
+
+    // Called when a game on the server is successfully started
+    function onServerSuccessfulStart() {
+        // Actually display the started game
+        console.log("Game started/resumed from server");
+        initializeUI();
+        updateBoardUI();
+    }
+
+    // Called when the game on the server failed to start
+    function onServerFailStart() {
+        opponentInfo = {
+            name: "Stockfish",
+            id: -1,
+            picture: "img/stockfish.png",
+            elo: "?",
+            contextId: -1,
+        }
+        board = new Chess();
+        initializeUI();
+        updateBoardUI();
+    }
+
+    // Attempt to start/resume a game on the server,
+    // returns true if successful
+    function serverStartResumeGame() {
+        const MAX_ATTEMPTS = 5;
+        var attempts = 0;
+        var tryStartResume = function () {
+            ++attempts;
+            if (attempts > MAX_ATTEMPTS) {
+                console.log("Failed to get game from server after " + MAX_ATTEMPTS + " attempts (maximum attempts).")
+                onServerFailStart();
+                return;
+            }
+            log("Trying to start/resume server game, attempt: " + attempts, "server");
+            sendServerMessage(
+                "Content: AppStart\r\nFrom: " +
+                playerInfo.id + "\r\nName: " +
+                playerInfo.name,
+                function () {
+                    log("Login success", "server");
+                    sendServerMessage(
+                        "Content: GameStateRequest\r\nFrom: " +
+                        playerInfo.id + "\r\nGame:" +
+                        playerInfo.contextId,
+                        function (x) {
+                            log("Game exists in server, loading it...", "server");
+                            playerInfo.playingAs =
+                                parseServerResponseFor(x.responseText, "Colour")
+                                    .toLowerCase();
+                            board.load(parseServerResponseFor(x.responseText, "FEN"));
+                            onServerSuccessfulStart(); // Success
+                        },
+                        function (x) {
+                            log("No game in server, starting new game...", "server");
+                            sendServerMessage(
+                                "Content: GameStart\r\nFrom: " +
+                                playerInfo.id + "\r\nTo:" +
+                                opponentInfo.id + "\r\nGame:" +
+                                playerInfo.contextId,
+                                function (x) {
+                                    log("successfully registered new game", "server");
+                                    playerInfo.playingAs =
+                                        parseServerResponseFor(x.responseText, "Colour")
+                                            .toLowerCase();
+                                    onServerSuccessfulStart(); // Success
+                                },
+                                function (x) {
+                                    log("failed to register new game", "server");
+                                    tryStartResume(); // Retry
+                                }
+                            )
+                        }
+                    )
+                }, function () {
+                    log("Login failed!", "server");
+                    tryStartResume(); // Retry 
+                });
+        };
+        tryStartResume();
+    }
+
     // Public API
     return {
         // Start the game
@@ -420,9 +549,10 @@ var game = (function () {
             console.log("Starting game");
             playerInfo = playerInfoIn;
             opponentInfo = opponentInfoIn;
-            initializeUI();
-            if (playerInfo.playingAs == "black") replyWithMove();
-            updateBoardUI();
+            // Load a silly thing so we know if we failed somewhere
+            playerInfo.playingAs = "white";
+            board.load("k7/qqqqqqqq/8/8/8/8/QQQQQQQQ/K7 w - - 1 45");
+            serverStartResumeGame();
         },
     }
 

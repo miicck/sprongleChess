@@ -3,35 +3,21 @@ var startup = (function () {
 
     var challengeImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAMSURBVBhXY/j//z8ABf4C/qc1gYQAAAAASUVORK5CYII=";
 
-    // Pick a random color
-    function randomColor() {
-        if (Math.random() < 0.5) return "white";
-        else return "black";
-    }
-
-    // Return the other color
-    function otherColor(color) {
-        if (color == "white") return "black";
-        else return "white";
-    }
-
     // Check if we're running locally for development purposes
     if (window.location.protocol == 'file:') {
         console.log("Running locally");
-        var color = randomColor();
         game.start({
-            name: "Sprongle",
-            id: 0,
+            name: "Mr Michael",
+            id: 6969,
             picture: "img/grandfatherHector.png",
             elo: 1500,
-            playingAs: color,
+            contextId: 69
         },
             {
-                name: "Stockfish",
-                id: 0,
-                picture: "img/stockfish.png",
+                name: "Magnet man",
+                id: 1337,
+                picture: "img/grandfatherHector.png",
                 elo: 0,
-                playingAs: otherColor(color),
             });
     }
     else FBInstant.initializeAsync()
@@ -83,7 +69,6 @@ var startup = (function () {
                 // once startGameAsync() resolves
                 var contextId = FBInstant.context.getID();
                 var contextType = FBInstant.context.getType();
-                var color = randomColor();
                 console.log("Context: " + contextId + " type: " + contextType);
 
                 FBInstant.context.getPlayersAsync()
@@ -94,14 +79,13 @@ var startup = (function () {
                             id: FBInstant.player.getID(),
                             picture: FBInstant.player.getPhoto(),
                             elo: 1500,
-                            playingAs: color,
+                            contextId: contextId,
                         },
                             {
                                 name: opponent.name,
                                 id: opponent.id,
                                 picture: opponent.photo,
                                 elo: 1500,
-                                playingAs: otherColor(color),
                             });
                     });
             });
