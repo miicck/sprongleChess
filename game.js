@@ -17,11 +17,12 @@ var game = (function () {
     var lastOpponentMove;   // The DOM element representing where the last opponent move came from
     var stockFishLevelMenu; // The DOM element for the skill of stockfish
 
-    // Allow switching on/off debug messages
+    // Allows switching on/off debug messages
     function log(thing, tag) {
 
         var acceptedTags = [
-            //"server",
+            "server",
+            "stockfish",
             //"ui",
         ];
 
@@ -46,6 +47,11 @@ var game = (function () {
         return window.location.protocol == 'file:'
     }
 
+    // Returns true if we're playing against the machine
+    function playingTheMachine() {
+        return opponentInfo.name = "Stockfish";
+    }
+
     // Build a pice from a pieceInfo structure
     function buildPiece(pieceInfo) {
 
@@ -55,8 +61,7 @@ var game = (function () {
         var p = document.createElement("div");
         p.className = "piece";
         p.style.transform = xyToTransform(x, y);
-        p.style.backgroundImage =
-            "url(img/" + pieceInfo.name + "_" + pieceInfo.color + ".svg)";
+        p.style.backgroundImage = "url(img/" + pieceInfo.name + "_" + pieceInfo.color + ".svg)";
         pieces[x][y] = p;
         boardArea.appendChild(p);
 
@@ -64,12 +69,17 @@ var game = (function () {
             // Select the piece
             if (promotonMenuOpen) return; // A promotion menu is open, don't allow clicking on pieces
             if (pieceInfo.color != playerInfo.playingAs) return; // This isn't my piece
-            if (selectedPiece != null) selectedPiece.id = null;  // Deselect old piece
+
+            if (selectedPiece != null)
+                selectedPiece.removeAttribute("id"); // Deselect old piece
+
             if (selectedPiece == this) {
+                // Deselect this piece if already selected
                 selectedPiece = null;
                 setMoveOptions([]);
             }
             else {
+                // Select new piece
                 selectedPiece = p;
                 p.id = "selected";
                 setMoveOptions(board.moves({ square: xyToAn(x, y), verbose: true }));
@@ -180,23 +190,55 @@ var game = (function () {
     // Player makes the given move
     function makeMove(move) {
 
+        if (!playingTheMachine())
+            sendServerMessage(
+                "content: ChessMove\r\n" +
+                "From: " + playerInfo.id + "\r\n" +
+                "To: " + opponentInfo.id + "\r\n" +
+                "Move: " + move.san + "\r\n" +
+                "Game: " + playerInfo.contextId,
+                function (x) {
+                    console.log("chess move success");
+                },
+                function (x) {
+                    console.log("chess move failure");
+                });
+
         board.move(move);
         updateBoardUI();
         setMoveOptions([]);
-        replyWithMove();
+        awaitMoveReply();
     }
 
-    // Opponent makes a move
-    function replyWithMove() {
-        if (opponentInfo.name == "Stockfish") {
+    // Await move reply from server
+    function awaitMoveReply() {
+        if (playingTheMachine()) {
             stockfishReplyWithMove();
             return;
         }
+        console.log("I'm waiting for move, haven't implemented this yet.");
+    }
+
+    // Make a random move
+    function makeRandomMove() {
+        var moves = board.moves({ verbose: true });
+        var move = moves[Math.floor(Math.random() * moves.length)];
+        board.move(move);
+        highlightLastOpponentMove({ from: move.from, to: move.to });
+        updateBoardUI();
     }
 
     // Stockfish replys with a move
     function stockfishReplyWithMove() {
-        var params = level = stockFishLevelMenu.value;
+
+        var level = 1;
+        if (stockFishLevelMenu)
+            level = stockFishLevelMenu.value;
+
+        if (level == "thermal") {
+            makeRandomMove();
+            return;
+        }
 
         ratio = (level - 1) / 9;
 
@@ -219,30 +261,27 @@ var game = (function () {
         var debug = "";
 
         var stockfish = new STOCKFISH();
-        //stockfish.postMessage("uci");
-        stockfish.onmessage = function (event) {
-            //console.log(event);
-            makeBestMove(event);
-        };
+        stockfish.onmessage = function (event) { parseAndMakeStockfishMove(event); };
 
         for (i in msgs) {
             debug += msgs[i] + "\n";
             stockfish.postMessage(msgs[i]);
         }
-        //console.log("Sent stockfish commands:\n" + debug);
+        log("Sent stockfish commands:\n" + debug, "stockfish");
     }
 
     // Make best move from stockfish event data
-    function makeBestMove(event) {
+    function parseAndMakeStockfishMove(event) {
+
         var moveData = String(event.data ? event.data : event);
         var splt = moveData.split(" ");
         var bestMove = null;
         for (i in splt)
-            if (splt[i] == "bestmove") {
+            if (splt[i] == "bestmove")
                 bestMove = splt[parseInt(i) + 1];
-                //console.log(bestMove);
-            }
         if (bestMove == null) return;
+
+        log("Making best stockfish move " + bestMove, "stockfish");
         board.move(bestMove, { sloppy: true });
         var from = bestMove.charAt(0) + bestMove.charAt(1);
         var to = bestMove.charAt(2) + bestMove.charAt(3);
@@ -364,10 +403,11 @@ var game = (function () {
             elo.innerHTML = "";
 
             stockFishLevelMenu = document.createElement("select");
-            for (var i = 1; i < 11; ++i) {
+            for (var i = 0; i < 11; ++i) {
                 var opt = document.createElement("option");
                 opt.value = i;
-                opt.innerHTML = i;
+                if (i == 0) opt.value = "thermal";
+                opt.innerHTML = opt.value;
                 stockFishLevelMenu.appendChild(opt);
             }
 
@@ -402,27 +442,6 @@ var game = (function () {
         var infoArea = document.createElement("div");
         infoArea.className = "info";
         infoArea.innerHTML = "5+0 | casual | rapid";
-
-        var optionsButton = document.createElement("i");
-        optionsButton.id = "options";
-        optionsButton.className = "material-icons";
-        optionsButton.innerHTML = "settings";
-        infoArea.appendChild(optionsButton);
-
-        optionsButton.onclick = function () {
-            if (settingsMenu != null) {
-                settingsMenu.remove();
-                settingsMenu = null;
-                return;
-            }
-            settingsMenu = document.createElement("div");
-            settingsMenu.className = "gameSettings"
-            document.body.appendChild(settingsMenu);
-
-            var muteButton = document.createElement("div");
-            muteButton.className = "toggle";
-            //settingsMenu.appendChild(muteButton);
-        }
 
         document.body.appendChild(infoArea);
         document.body.appendChild(opponentArea);
@@ -463,13 +482,15 @@ var game = (function () {
     // Called when a game on the server is successfully started
     function onServerSuccessfulStart() {
         // Actually display the started game
-        console.log("Game started/resumed from server");
+        console.log("Game started/resumed from server. Playing as " + playerInfo.playingAs);
         initializeUI();
         updateBoardUI();
+        if (!myTurn()) awaitMoveReply();
     }
 
     // Called when the game on the server failed to start
     function onServerFailStart() {
+        console.log("Failed to connect to the server, loading stockfish...");
         opponentInfo = {
             name: "Stockfish",
             id: -1,
@@ -485,7 +506,7 @@ var game = (function () {
     // Attempt to start/resume a game on the server,
     // returns true if successful
     function serverStartResumeGame() {
-        const MAX_ATTEMPTS = 5;
+        const MAX_ATTEMPTS = 0;
         var attempts = 0;
         var tryStartResume = function () {
             ++attempts;
@@ -502,9 +523,9 @@ var game = (function () {
                 function () {
                     log("Login success", "server");
                     sendServerMessage(
-                        "Content: GameStateRequest\r\nFrom: " +
-                        playerInfo.id + "\r\nGame:" +
-                        playerInfo.contextId,
+                        "Content: GameStateRequest\r\n" +
+                        "From: " + playerInfo.id + "\r\n" +
+                        "Game: " + playerInfo.contextId,
                         function (x) {
                             log("Game exists in server, loading it...", "server");
                             playerInfo.playingAs =
@@ -516,15 +537,16 @@ var game = (function () {
                         function (x) {
                             log("No game in server, starting new game...", "server");
                             sendServerMessage(
-                                "Content: GameStart\r\nFrom: " +
-                                playerInfo.id + "\r\nTo:" +
-                                opponentInfo.id + "\r\nGame:" +
-                                playerInfo.contextId,
+                                "Content: GameStart\r\n" +
+                                "From: " + playerInfo.id + "\r\n" +
+                                "To: " + opponentInfo.id + "\r\n" +
+                                "Game: " + playerInfo.contextId,
                                 function (x) {
                                     log("successfully registered new game", "server");
                                     playerInfo.playingAs =
                                         parseServerResponseFor(x.responseText, "Colour")
                                             .toLowerCase();
+                                    board = new Chess();
                                     onServerSuccessfulStart(); // Success
                                 },
                                 function (x) {
@@ -534,7 +556,8 @@ var game = (function () {
                             )
                         }
                     )
-                }, function () {
+                },
+                function () {
                     log("Login failed!", "server");
                     tryStartResume(); // Retry 
                 });

@@ -6,19 +6,34 @@ var startup = (function () {
     // Check if we're running locally for development purposes
     if (window.location.protocol == 'file:') {
         console.log("Running locally");
-        game.start({
+
+        var richard = {
+            name: "Magnet man",
+            id: 1337,
+            picture: "img/grandfatherHector.png",
+            elo: 0,
+            contextId: 69
+        }
+
+        var michael = {
             name: "Mr Michael",
             id: 6969,
             picture: "img/grandfatherHector.png",
-            elo: 1500,
+            elo: 2750,
             contextId: 69
-        },
-            {
-                name: "Magnet man",
-                id: 1337,
-                picture: "img/grandfatherHector.png",
-                elo: 0,
-            });
+        }
+
+        var localPlayer = richard;
+        var opponent = michael;
+
+        if (window.location.pathname.startsWith("/F")) {
+            localPlayer = michael;
+            opponent = richard;
+            console.log("Hello michael!");
+        }
+        else console.log("Hello richard!");
+
+        game.start(localPlayer, opponent);
     }
     else FBInstant.initializeAsync()
         .then(function () {

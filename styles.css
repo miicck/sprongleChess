@@ -96,32 +96,3 @@ div.info{
     text-align: center;  
     box-shadow: 0px 0px 5px black;
 }
-
-div.gameSettings{
-    position: absolute;
-    top: 7vw;
-    left: 0px;
-    width: 100vw;
-    height: 100vw;
-    background-color: rgba(1,1,1,0.8);
-}
-
-div.toggle{
-    width: 20vw;
-    height: 10vw;
-    background-color: grey;
-    border-radius: 5vw;
-}
-
-#options{
-    float: right;
-    height: 7vw;
-    padding: 1vw;
-    font-size: 5vw;
-    width: 7vw;
-}
-
-#options:hover{
-    color: black;
-    cursor: pointer;
-}
