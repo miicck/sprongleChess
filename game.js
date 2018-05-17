@@ -49,7 +49,7 @@ var game = (function () {
 
     // Returns true if we're playing against the machine
     function playingTheMachine() {
-        return opponentInfo.name = "Stockfish";
+        return opponentInfo.name == "Stockfish";
     }
 
     // Build a pice from a pieceInfo structure
@@ -192,7 +192,7 @@ var game = (function () {
 
         if (!playingTheMachine())
             sendServerMessage(
-                "content: ChessMove\r\n" +
+                "Content: ChessMove\r\n" +
                 "From: " + playerInfo.id + "\r\n" +
                 "To: " + opponentInfo.id + "\r\n" +
                 "Move: " + move.san + "\r\n" +
@@ -216,11 +216,11 @@ var game = (function () {
             stockfishReplyWithMove();
             return;
         }
-        console.log("I'm waiting for move, haven't implemented this yet.");
     }
 
     // Make a random move
     function makeRandomMove() {
+        log("stockfish made a random move", "stockfish");
         var moves = board.moves({ verbose: true });
         var move = moves[Math.floor(Math.random() * moves.length)];
         board.move(move);
@@ -451,12 +451,12 @@ var game = (function () {
 
     // Send the server a message
     function sendServerMessage(message, successHandler, failureHandler) {
-        log("Sending message to sprongle.com ...\n" + message, "server");
+        log("Sending message to sprongle.com ...\n" + message, "server_all");
         var x = new XMLHttpRequest();
         x.open('POST', 'http://sprongle.com', true);
         x.onload = function () {
-            log("Response from sprongle.com:", "server");
-            log(x.response, "server");
+            log("Response from sprongle.com:", "server_all");
+            log(x.response, "server_all");
             if (x.responseText.startsWith("success"))
                 successHandler(x);
             else
@@ -479,6 +479,21 @@ var game = (function () {
         return null;
     }
 
+    // Get updates on a tick
+    function serverTickUpdate() {
+        sendServerMessage(
+            "Content: GameStateRequest\r\n" +
+            "From: " + playerInfo.id + "\r\n" +
+            "Game: " + playerInfo.contextId,
+            function (x) {
+                log("Awaiting move state request success", "server_tick");
+                loadGameFromServerFEN(x);
+            },
+            function (x) {
+                log("Awaiting move state request failed", "server_tick");
+            });
+    }
+
     // Called when a game on the server is successfully started
     function onServerSuccessfulStart() {
         // Actually display the started game
@@ -486,6 +501,7 @@ var game = (function () {
         initializeUI();
         updateBoardUI();
         if (!myTurn()) awaitMoveReply();
+        setInterval(serverTickUpdate, 200);
     }
 
     // Called when the game on the server failed to start
@@ -503,10 +519,16 @@ var game = (function () {
         updateBoardUI();
     }
 
+    // Load a game from a successful GameState request
+    function loadGameFromServerFEN(xhttp) {
+        playerInfo.playingAs = parseServerResponseFor(xhttp.responseText, "Colour").toLowerCase();
+        board.load(parseServerResponseFor(xhttp.responseText, "FEN"));
+    }
+
     // Attempt to start/resume a game on the server,
     // returns true if successful
     function serverStartResumeGame() {
-        const MAX_ATTEMPTS = 0;
+        const MAX_ATTEMPTS = 1;
         var attempts = 0;
         var tryStartResume = function () {
             ++attempts;
@@ -528,10 +550,7 @@ var game = (function () {
                         "Game: " + playerInfo.contextId,
                         function (x) {
                             log("Game exists in server, loading it...", "server");
-                            playerInfo.playingAs =
-                                parseServerResponseFor(x.responseText, "Colour")
-                                    .toLowerCase();
-                            board.load(parseServerResponseFor(x.responseText, "FEN"));
+                            loadGameFromServerFEN(x);
                             onServerSuccessfulStart(); // Success
                         },
                         function (x) {
