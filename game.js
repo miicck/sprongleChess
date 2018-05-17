@@ -21,9 +21,10 @@ var game = (function () {
     function log(thing, tag) {
 
         var acceptedTags = [
-            "server",
-            "stockfish",
-            "server_tick",
+            //"server",
+            //"stockfish",
+            //"server_tick",
+            //"server_all",
             //"ui",
         ];
 
@@ -68,23 +69,31 @@ var game = (function () {
 
         p.onclick = function () {
             // Select the piece
-            if (promotonMenuOpen) return; // A promotion menu is open, don't allow clicking on pieces
-            if (pieceInfo.color != playerInfo.playingAs) return; // This isn't my piece
+            if (pieceInfo.color == playerInfo.playingAs)
+                selectPiece(x, y);
+        }
 
-            if (selectedPiece != null)
-                selectedPiece.removeAttribute("id"); // Deselect old piece
+        return p;
+    }
 
-            if (selectedPiece == this) {
-                // Deselect this piece if already selected
-                selectedPiece = null;
-                setMoveOptions([]);
-            }
-            else {
-                // Select new piece
-                selectedPiece = p;
-                p.id = "selected";
-                setMoveOptions(board.moves({ square: xyToAn(x, y), verbose: true }));
-            }
+    // Select the piece at x, y
+    function selectPiece(x, y) {
+        var p = pieces[x][y];
+        if (promotonMenuOpen) return; // A promotion menu is open, don't allow clicking on pieces
+
+        if (selectedPiece != null)
+            selectedPiece.removeAttribute("id"); // Deselect old piece
+
+        if (selectedPiece == this) {
+            // Deselect this piece if already selected
+            selectedPiece = null;
+            setMoveOptions([]);
+        }
+        else {
+            // Select new piece
+            selectedPiece = p;
+            p.id = "selected";
+            setMoveOptions(board.moves({ square: xyToAn(x, y), verbose: true }));
         }
     }
 
@@ -317,8 +326,12 @@ var game = (function () {
         for (var x = 0; x < 8; ++x)
             for (var y = 0; y < 8; ++y) {
 
-                if (pieces[x][y] != null)
+                var sel = false;
+                if (pieces[x][y] != null) {
+                    if (pieces[x][y].id == "selected")
+                        sel = true;
                     pieces[x][y].remove();
+                }
 
                 if (pcs[x][y] != null) {
                     var type = pcs[x][y].type;
@@ -328,6 +341,8 @@ var game = (function () {
                         color: getLongColor(color),
                         position: [x, y]
                     });
+
+                    if (sel) selectPiece(x, y);
                 }
             }
     }
@@ -487,12 +502,12 @@ var game = (function () {
             "From: " + playerInfo.id + "\r\n" +
             "Game: " + playerInfo.contextId,
             function (x) {
-                log("Awaiting move state request success", "server_tick");
+                log("Server tick state request success", "server_tick");
                 loadGameFromServerFEN(x);
                 updateBoardUI();
             },
             function (x) {
-                log("Awaiting move state request failed", "server_tick");
+                log("Server tick state request failed", "server_tick");
             });
     }
 
