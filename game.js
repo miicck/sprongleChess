@@ -23,6 +23,7 @@ var game = (function () {
         var acceptedTags = [
             "server",
             "stockfish",
+            "server_tick",
             //"ui",
         ];
 
@@ -488,6 +489,7 @@ var game = (function () {
             function (x) {
                 log("Awaiting move state request success", "server_tick");
                 loadGameFromServerFEN(x);
+                updateBoardUI();
             },
             function (x) {
                 log("Awaiting move state request failed", "server_tick");
@@ -501,7 +503,7 @@ var game = (function () {
         initializeUI();
         updateBoardUI();
         if (!myTurn()) awaitMoveReply();
-        setInterval(serverTickUpdate, 200);
+        setInterval(serverTickUpdate, 1000);
     }
 
     // Called when the game on the server failed to start

@@ -104,7 +104,6 @@ var startup = (function () {
                             });
                     });
             });
-        //});
     }
 
 }()); // End namespace startup
