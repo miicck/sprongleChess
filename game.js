@@ -4,36 +4,10 @@ var game = (function () {
     var board = new Chess();      // The chess board state
     var playerInfo;               // Info about the player
     var opponentInfo;             // Info about the oppenent
-    var promotonMenuOpen = false; // Is the promotion menu open?
-
-    // DOM elements
-    var pieces;             // The DOM elements representing the pieces
-    var boardArea;          // The DOM element representing the board
-    var opponentArea;       // The DOM element representing the opponent
-    var playerArea;         // The DOM element representing the player
-    var settingsMenu;       // The DOM element representing the settings window (if it's open)
-    var stockFishLevelMenu; // The DOM element for the skill of stockfish
 
     // Allows switching on/off debug messages
     function log(thing, tag) {
-
-        var acceptedTags = [
-            //"server",
-            //"stockfish",
-            //"server_tick",
-            //"server_all",
-            //"ui",
-        ];
-
-        var accepted = false;
-        for (var i in acceptedTags)
-            if (acceptedTags[i] == tag) {
-                accepted = true;
-                break;
-            }
-
-        if (accepted)
-            console.log(thing);
+        utils.log(thing, tag);
     }
 
     // Returns true if it is my turn
@@ -49,6 +23,11 @@ var game = (function () {
     // Returns true if we're playing against the machine
     function playingTheMachine() {
         return opponentInfo.name == "Stockfish";
+    }
+
+    // Returns true if a promotion menu is open
+    function promotionMenuOpen() {
+        return document.getElementsByClassName("promotion").length > 0;
     }
 
     // Adds the element e as the first child of this
@@ -76,7 +55,6 @@ var game = (function () {
         p.className = "piece";
         p.id = pieceInfo.color + "_" + pieceInfo.name;
         p.style.backgroundImage = "url(img/" + pieceInfo.name + "_" + pieceInfo.color + ".svg)";
-        pieces[x][y] = p;
         elmFromID_X_Y("square", x, y).appendChild(p);
 
         p.onclick = function () {
@@ -88,31 +66,36 @@ var game = (function () {
         return p;
     }
 
-    // Return the square at x, y
-    function elmFromID_X_Y(id, x, y) {
-        if (playerInfo.playingAs == "white")
-            return document.getElementById(id + "_" + x + "_" + y);
-        return document.getElementById(id + "_" + (7 - x) + "_" + (7 - y));
-    }
-
     // Select the piece at x, y
     function selectPiece(x, y) {
-        if (promotonMenuOpen) return; // A promotion menu is open, don't allow clicking on pieces
-        var wasSelected = elmFromID_X_Y("selectionMarker", x, y) != null;
+        if (promotionMenuOpen()) return; // A promotion menu is open, don't allow clicking on pieces
+        var wasSelected = (elmFromID_X_Y("selectionMarker", x, y) != null);
         deselectPiece();
         if (wasSelected) return;
         var sq = elmFromID_X_Y("square", x, y);
         sm = document.createElement("div");
         sm.className = "selectionMarker";
-        sm.id = "selectionMarker_" + x + "_" + y;
+        var xy = xyToFlipped(x, y);
+        sm.id = "selectionMarker_" + xy.x + "_" + xy.y;
         sq.addFirstChild(sm);
-        setMoveOptions(board.moves({ square: xyToAn(x, y), verbose: true }));
+        setMoveOptionsFromSelection();
     }
 
     // Deselect the selected piece
     function deselectPiece() {
         foreachOfClassName("selectionMarker", e => e.remove());
         setMoveOptions([]);
+    }
+
+    function setMoveOptionsFromSelection() {
+        setMoveOptions([]);
+        foreachOfClassName("selectionMarker", sm => {
+            var sp = sm.id.split("_");
+            var x = parseInt(sp[1]);
+            var y = parseInt(sp[2]);
+            var xyf = xyToFlipped(x, y);
+            setMoveOptions(board.moves({ square: xyToAn(xyf.x, xyf.y), verbose: true }));
+        });
     }
 
     // Set move options
@@ -140,7 +123,7 @@ var game = (function () {
                         createPromotionDropdown(m);
                         return;
                     }
-                    makeMove(m);
+                    playerMakeMove(m);
                 }
             })(move);
         }
@@ -149,10 +132,10 @@ var game = (function () {
     // Create the menu to promote a piece
     function createPromotionDropdown(promotionMove) {
 
-        promotonMenuOpen = true;
         setMoveOptions([]);
+        foreachOfClassName("promotion", e => e.remove());
+
         var xy = anToXy(promotionMove.to);
-        var promotors = [];
         var colormod = 1;
         if (playerInfo.playingAs == "black")
             colormod = -1;
@@ -160,7 +143,6 @@ var game = (function () {
         var vals = ["q", "n", "r", "b"];
         for (var i in vals)
             createPromotor({
-                promotors: promotors,
                 move: promotionMove,
                 promoteTo: vals[i],
                 x: xy.x + colormod * i,
@@ -173,24 +155,43 @@ var game = (function () {
 
         var prom = document.createElement("div");
         prom.className = "promotion";
-        prom.style.transform = xyToTransform(promotorInfo.x, promotorInfo.y);
         prom.style.backgroundImage =
             "url(img/" + getLongName(promotorInfo.promoteTo) +
             "_" + playerInfo.playingAs + ".svg)";
-        promotorInfo.promotors.push(prom);
 
         prom.onclick = function () {
             promotorInfo.move.promotion = promotorInfo.promoteTo;
-            makeMove(promotorInfo.move);
-            for (var i in promotorInfo.promotors)
-                promotorInfo.promotors[i].remove();
-            promotonMenuOpen = false;
+            playerMakeMove(promotorInfo.move);
+            foreachOfClassName("promotion", e => e.remove());
         }
-        boardArea.appendChild(prom);
+
+        var sq = elmFromID_X_Y("square", promotorInfo.x, promotorInfo.y);
+        sq.appendChild(prom);
+    }
+
+    // Returns true if the given move is a capturing move
+    function isCapture(move) {
+        if (move.flags)
+            return move.flags.includes('c');
+        if (typeof move == "string") {
+            var xy = anToXy(move.substr(2, 2));
+            var p = board.board()[xy.x][xy.y];
+            return p != null;
+        }
+    }
+
+    // Called whenever a move is made
+    function makeMove(move) {
+        if (isCapture(move)) sound.playSound("sound/Capture.mp3");
+        else sound.playSound("sound/Move.mp3");
+        board.move(move, { sloppy: true });
+        if (myTurn()) highlightLastOpponentMove(move);
+        updatePieces();
+        setMoveOptionsFromSelection();
     }
 
     // Player makes the given move
-    function makeMove(move) {
+    function playerMakeMove(move) {
 
         deselectPiece();
         if (!playingTheMachine())
@@ -207,14 +208,14 @@ var game = (function () {
                     console.log("chess move failure");
                 });
 
-        board.move(move);
-        updateBoardUI();
-        setMoveOptions([]);
-        awaitMoveReply();
+        makeMove(move);
+        awaitMoveReply(); // Wait for a reply
     }
 
-    // Await move reply from server
+    // Await move reply from server (or stockfish)
     function awaitMoveReply() {
+        if (myTurn()) return; // It's my turn, don't wait for a reply
+        if (board.game_over()) return; // The game is over, don't do anything
         if (playingTheMachine()) {
             stockfishReplyWithMove();
             return;
@@ -231,77 +232,44 @@ var game = (function () {
     function makeRandomMove() {
         log("stockfish made a random move", "stockfish");
         var move = getRandomMove();
-        board.move(move);
-        highlightLastOpponentMove({ from: move.from, to: move.to });
-        updateBoardUI();
+        makeMove(move);
     }
 
     // Stockfish replys with a move
     function stockfishReplyWithMove() {
-
         var level = 1;
-        if (stockFishLevelMenu)
-            level = stockFishLevelMenu.value;
+        var menu = document.getElementById("stockfishLevelMenu");
+        if (menu) level = menu.value;
 
         if (level == "thermal") {
-            makeRandomMove();
+            setTimeout(makeRandomMove, 250);
             return;
         }
 
-        ratio = (level - 1) / 9;
-
-        params = {
-            depth: Math.floor(1 + ratio * 9),
-            skill: Math.floor(ratio * 20),
-            maxError: ratio * 5000,
-            probability: ratio * 1000
-        };
-
-        var msgs = [
-            "position fen " + board.fen(),
-            "setoption name Skill Level value " + params.skill,
-            "setoption name Skill Level Maximum Error value " + params.maxError,
-            "setoption name Skill Level Probability value " + params.probability,
-            "setoption name Contempt value " + 100,
-            "go depth " + params.depth
-        ];
-
-        var debug = "";
-
-        var stockfish = new STOCKFISH();
-        stockfish.onmessage = function (event) { parseAndMakeStockfishMove(event); };
-
-        for (i in msgs) {
-            debug += msgs[i] + "\n";
-            stockfish.postMessage(msgs[i]);
-        }
-        log("Sent stockfish commands:\n" + debug, "stockfish");
-    }
-
-    // Make best move from stockfish event data
-    function parseAndMakeStockfishMove(event) {
-
-        var moveData = String(event.data ? event.data : event);
-        var splt = moveData.split(" ");
-        var bestMove = null;
-        for (i in splt)
-            if (splt[i] == "bestmove")
-                bestMove = splt[parseInt(i) + 1];
-        if (bestMove == null) return;
-
-        log("Making best stockfish move " + bestMove, "stockfish");
-        board.move(bestMove, { sloppy: true });
-        var from = bestMove.charAt(0) + bestMove.charAt(1);
-        var to = bestMove.charAt(2) + bestMove.charAt(3);
-        highlightLastOpponentMove({ from: from, to: to });
-        updateBoardUI();
+        setTimeout(() =>
+            chessEngine.bestStockfishMove(board.fen(), level,
+                bm => makeMove(bm)), 10);
     }
 
     // Set the last move positions
     function highlightLastOpponentMove(move) {
         foreachOfClassName("lastMove", e => e.remove());
-        var xyf = anToXy(move.from);
-        var xyt = anToXy(move.to);
+
+        var xyf;
+        var xyt;
+
+        if (move.from && move.to) {
+            // Parse a verbose move
+            xyf = anToXy(move.from);
+            xyt = anToXy(move.to);
+        }
+        else if (typeof move == "string") {
+            // Pass a move of the form a1a2
+            xyf = anToXy(move.substr(0, 2));
+            xyt = anToXy(move.substr(2, 2));
+        }
+        else return;
+
         createLastMoveHighlight(xyf);
         createLastMoveHighlight(xyt);
     }
@@ -314,17 +282,14 @@ var game = (function () {
         sq.addFirstChild(from);
     }
 
-    // Update the chessboard
-    function updateBoardUI() {
+    // Update the chess pieces so they are the same as those
+    // in the chess.js board
+    function updatePieces() {
+        if (board.game_over()) board = new Chess();
+        foreachOfClassName("piece", e => e.remove());
         var pcs = board.board();
         for (var x = 0; x < 8; ++x)
-            for (var y = 0; y < 8; ++y) {
-
-                if (pieces[x][y] != null) {
-                    pieces[x][y].remove();
-                    pieces[x][y] = null;
-                }
-
+            for (var y = 0; y < 8; ++y)
                 if (pcs[x][y] != null) {
                     var type = pcs[x][y].type;
                     var color = pcs[x][y].color;
@@ -334,7 +299,6 @@ var game = (function () {
                         position: [x, y]
                     });
                 }
-            }
     }
 
     // Go from x,y to a,n notation, i.e 0,1 -> a7
@@ -357,6 +321,25 @@ var game = (function () {
             return "translate(" + y * 12.5 + "vw," + x * 12.5 + "vw)";
         else
             return "translate(" + (7 - y) * 12.5 + "vw," + (7 - x) * 12.5 + "vw)";
+    }
+
+    // Flip x and y if the board is upside down
+    function xyToFlipped(x, y) {
+        if (playerInfo.playingAs == "black")
+            return {
+                x: 7 - x,
+                y: 7 - y
+            }
+        return {
+            x: x,
+            y: y
+        }
+    }
+
+    // Return the square at x, y
+    function elmFromID_X_Y(id, x, y) {
+        var xy = xyToFlipped(x, y);
+        return document.getElementById(id + "_" + xy.x + "_" + xy.y);
     }
 
     // Convert p -> pawn etc.
@@ -408,7 +391,8 @@ var game = (function () {
             elo.id = "stockfishLevel";
             elo.innerHTML = "";
 
-            stockFishLevelMenu = document.createElement("select");
+            var stockFishLevelMenu = document.createElement("select");
+            stockFishLevelMenu.id = "stockfishLevelMenu";
             for (var i = 0; i < 11; ++i) {
                 var opt = document.createElement("option");
                 opt.value = i;
@@ -430,11 +414,7 @@ var game = (function () {
 
     // Initialize the ui
     function initializeUI() {
-        pieces = new Array(8);
-        for (var x = 0; x < 8; ++x)
-            pieces[x] = new Array(8);
-
-        boardArea = document.createElement("div");
+        var boardArea = document.createElement("div");
         boardArea.className = "board";
 
         var table = document.createElement("table");
@@ -525,7 +505,7 @@ var game = (function () {
             function (x) {
                 log("Server tick state request success", "server_tick");
                 loadGameFromServerFEN(x);
-                updateBoardUI();
+                updatePieces();
             },
             function (x) {
                 log("Server tick state request failed", "server_tick");
@@ -534,7 +514,7 @@ var game = (function () {
 
     // Simulate the effects of a server tick
     function simulatedServerTick() {
-        updateBoardUI();
+        updatePieces();
     }
 
     // Called when a game on the server is successfully started
@@ -542,7 +522,7 @@ var game = (function () {
         // Actually display the started game
         console.log("Game started/resumed from server. Playing as " + playerInfo.playingAs);
         initializeUI();
-        updateBoardUI();
+        updatePieces();
         if (!myTurn()) awaitMoveReply();
         setInterval(serverTickUpdate, 1000);
     }
@@ -558,14 +538,14 @@ var game = (function () {
             contextId: -1,
         }
         board = new Chess();
-        initializeUI();
-        updateBoardUI();
-        setInterval(simulatedServerTick, 1000);
+
         if (Math.random() < 0.5) playerInfo.playingAs = "white";
-        else {
-            playerInfo.playingAs = "black";
-            awaitMoveReply();
-        }
+        else playerInfo.playingAs = "black";
+
+        initializeUI();
+        updatePieces();
+        setInterval(simulatedServerTick, 1000);
+        if (!myTurn()) awaitMoveReply();
     }
 
     // Load a game from a successful GameState request
@@ -644,7 +624,7 @@ var game = (function () {
             playerInfo.playingAs = "white";
             board.load("k7/qqqqqqqq/8/8/8/8/QQQQQQQQ/K7 w - - 1 45");
             serverStartResumeGame();
-        },
+        }
     }
 
 }()); // End namespace game

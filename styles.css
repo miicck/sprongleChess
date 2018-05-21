@@ -2,8 +2,8 @@ body{
     margin: 0px;
     padding: 0px;
     font-family: Arial, Helvetica, sans-serif;
-    color: #ccc;
-    background-color: #777;
+    color: #777;
+    background-color: #eee;
 }
 
 div.board{
@@ -32,16 +32,7 @@ td.darkSquare{
    background-color: #b58863;
 }
 
-div.promotion
-{
-    margin: 0px;
-    padding: 0px;
-    background-size: cover;
-    position: absolute;
-    height: 12.5vw;
-    width: 12.5vw;
-}
-
+div.promotion,
 div.lastMove,
 div.piece,
 div.selectionMarker,
@@ -51,6 +42,7 @@ div.moveOption{
     top: 0;
     left: 0;
     position: absolute;
+    background-size: cover;
     padding: 0;
 }
 
