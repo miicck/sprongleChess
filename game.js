@@ -1,20 +1,17 @@
 // Namespace game
 var game = (function () {
 
-    var board = new Chess();      // The chess board
+    var board = new Chess();      // The chess board state
     var playerInfo;               // Info about the player
     var opponentInfo;             // Info about the oppenent
     var promotonMenuOpen = false; // Is the promotion menu open?
 
     // DOM elements
     var pieces;             // The DOM elements representing the pieces
-    var selectedPiece;      // The DOM element representing the selected piece
-    var moveOptions;        // The DOM elements representing the possible moves
     var boardArea;          // The DOM element representing the board
     var opponentArea;       // The DOM element representing the opponent
     var playerArea;         // The DOM element representing the player
-    var settingsMenu;       // The DOM element representing the settings window (if it's open)  
-    var lastOpponentMove;   // The DOM element representing where the last opponent move came from
+    var settingsMenu;       // The DOM element representing the settings window (if it's open)
     var stockFishLevelMenu; // The DOM element for the skill of stockfish
 
     // Allows switching on/off debug messages
@@ -54,6 +51,21 @@ var game = (function () {
         return opponentInfo.name == "Stockfish";
     }
 
+    // Adds the element e as the first child of this
+    Element.prototype.addFirstChild = function (e) {
+        this.insertBefore(e, this.firstChild);
+    }
+
+    // Call func on each element with the given class name
+    function foreachOfClassName(className, func) {
+        var list = document.getElementsByClassName(className);
+        list2 = []; // This second list is needed as list can change when func is called
+        for (var i = 0; i < list.length; ++i)
+            list2.push(list[i]);
+        for (var i in list2)
+            func(list2[i]);
+    }
+
     // Build a pice from a pieceInfo structure
     function buildPiece(pieceInfo) {
 
@@ -62,10 +74,10 @@ var game = (function () {
 
         var p = document.createElement("div");
         p.className = "piece";
-        p.style.transform = xyToTransform(x, y);
+        p.id = pieceInfo.color + "_" + pieceInfo.name;
         p.style.backgroundImage = "url(img/" + pieceInfo.name + "_" + pieceInfo.color + ".svg)";
         pieces[x][y] = p;
-        boardArea.appendChild(p);
+        elmFromID_X_Y("square", x, y).appendChild(p);
 
         p.onclick = function () {
             // Select the piece
@@ -76,25 +88,31 @@ var game = (function () {
         return p;
     }
 
+    // Return the square at x, y
+    function elmFromID_X_Y(id, x, y) {
+        if (playerInfo.playingAs == "white")
+            return document.getElementById(id + "_" + x + "_" + y);
+        return document.getElementById(id + "_" + (7 - x) + "_" + (7 - y));
+    }
+
     // Select the piece at x, y
     function selectPiece(x, y) {
-        var p = pieces[x][y];
         if (promotonMenuOpen) return; // A promotion menu is open, don't allow clicking on pieces
+        var wasSelected = elmFromID_X_Y("selectionMarker", x, y) != null;
+        deselectPiece();
+        if (wasSelected) return;
+        var sq = elmFromID_X_Y("square", x, y);
+        sm = document.createElement("div");
+        sm.className = "selectionMarker";
+        sm.id = "selectionMarker_" + x + "_" + y;
+        sq.addFirstChild(sm);
+        setMoveOptions(board.moves({ square: xyToAn(x, y), verbose: true }));
+    }
 
-        if (selectedPiece != null)
-            selectedPiece.removeAttribute("id"); // Deselect old piece
-
-        if (selectedPiece == this) {
-            // Deselect this piece if already selected
-            selectedPiece = null;
-            setMoveOptions([]);
-        }
-        else {
-            // Select new piece
-            selectedPiece = p;
-            p.id = "selected";
-            setMoveOptions(board.moves({ square: xyToAn(x, y), verbose: true }));
-        }
+    // Deselect the selected piece
+    function deselectPiece() {
+        foreachOfClassName("selectionMarker", e => e.remove());
+        setMoveOptions([]);
     }
 
     // Set move options
@@ -103,21 +121,17 @@ var game = (function () {
         log("move options: " + moves.length, "ui");
 
         // Remove previous move options
-        if (moveOptions != null)
-            for (var i in moveOptions)
-                moveOptions[i].remove();
-        moveOptions = [];
+        foreachOfClassName("moveOption", e => e.remove());
 
         // Create new move options
         for (var i in moves) {
             var move = moves[i];
             var target = anToXy(move.to);
 
+            var sq = elmFromID_X_Y("square", target.x, target.y);
             var elm = document.createElement("div");
             elm.className = "moveOption";
-            elm.style.transform = xyToTransform(target.x, target.y);
-            moveOptions.push(elm);
-            boardArea.appendChild(elm);
+            sq.appendChild(elm);
 
             (function (m) {
                 elm.onclick = function () {
@@ -143,37 +157,15 @@ var game = (function () {
         if (playerInfo.playingAs == "black")
             colormod = -1;
 
-        createPromotor({
-            promotors: promotors,
-            move: promotionMove,
-            promoteTo: "q",
-            x: xy.x,
-            y: xy.y
-        });
-
-        createPromotor({
-            promotors: promotors,
-            move: promotionMove,
-            promoteTo: "n",
-            x: xy.x + colormod * 1,
-            y: xy.y
-        });
-
-        createPromotor({
-            promotors: promotors,
-            move: promotionMove,
-            promoteTo: "r",
-            x: xy.x + colormod * 2,
-            y: xy.y
-        });
-
-        createPromotor({
-            promotors: promotors,
-            move: promotionMove,
-            promoteTo: "b",
-            x: xy.x + colormod * 3,
-            y: xy.y
-        });
+        var vals = ["q", "n", "r", "b"];
+        for (var i in vals)
+            createPromotor({
+                promotors: promotors,
+                move: promotionMove,
+                promoteTo: vals[i],
+                x: xy.x + colormod * i,
+                y: xy.y
+            });
     }
 
     // Create a promotor
@@ -200,6 +192,7 @@ var game = (function () {
     // Player makes the given move
     function makeMove(move) {
 
+        deselectPiece();
         if (!playingTheMachine())
             sendServerMessage(
                 "Content: ChessMove\r\n" +
@@ -228,11 +221,16 @@ var game = (function () {
         }
     }
 
+    // Get a random move from the current board
+    function getRandomMove() {
+        var moves = board.moves({ verbose: true });
+        return moves[Math.floor(Math.random() * moves.length)];
+    }
+
     // Make a random move
     function makeRandomMove() {
         log("stockfish made a random move", "stockfish");
-        var moves = board.moves({ verbose: true });
-        var move = moves[Math.floor(Math.random() * moves.length)];
+        var move = getRandomMove();
         board.move(move);
         highlightLastOpponentMove({ from: move.from, to: move.to });
         updateBoardUI();
@@ -301,23 +299,19 @@ var game = (function () {
 
     // Set the last move positions
     function highlightLastOpponentMove(move) {
-        if (lastOpponentMove != null)
-            for (var i in lastOpponentMove)
-                lastOpponentMove[i].remove();
-        lastOpponentMove = [];
-
+        foreachOfClassName("lastMove", e => e.remove());
         var xyf = anToXy(move.from);
         var xyt = anToXy(move.to);
         createLastMoveHighlight(xyf);
         createLastMoveHighlight(xyt);
     }
 
+    // Highlight this square
     function createLastMoveHighlight(xy) {
         var from = document.createElement("div");
         from.className = "lastMove";
-        from.style.transform = xyToTransform(xy.x, xy.y);
-        lastOpponentMove.push(from);
-        boardArea.appendChild(from);
+        var sq = elmFromID_X_Y("square", xy.x, xy.y);
+        sq.addFirstChild(from);
     }
 
     // Update the chessboard
@@ -326,23 +320,19 @@ var game = (function () {
         for (var x = 0; x < 8; ++x)
             for (var y = 0; y < 8; ++y) {
 
-                var sel = false;
                 if (pieces[x][y] != null) {
-                    if (pieces[x][y].id == "selected")
-                        sel = true;
                     pieces[x][y].remove();
+                    pieces[x][y] = null;
                 }
 
                 if (pcs[x][y] != null) {
                     var type = pcs[x][y].type;
                     var color = pcs[x][y].color;
-                    buildPiece({
+                    var p = buildPiece({
                         name: getLongName(type),
                         color: getLongColor(color),
                         position: [x, y]
                     });
-
-                    if (sel) selectPiece(x, y);
                 }
             }
     }
@@ -447,6 +437,22 @@ var game = (function () {
         boardArea = document.createElement("div");
         boardArea.className = "board";
 
+        var table = document.createElement("table");
+        table.cellSpacing = 0;
+        table.className = "board";
+        for (var x = 0; x < 8; ++x) {
+            var row = document.createElement("tr");
+            table.appendChild(row);
+            for (var y = 0; y < 8; ++y) {
+                var square = document.createElement("td");
+                square.className = "darkSquare";
+                if ((x + y) % 2 == 0) square.className = "lightSquare";
+                square.id = "square_" + x + "_" + y;
+                row.appendChild(square);
+            }
+        }
+        boardArea.appendChild(table);
+
         opponentArea = document.createElement("div");
         opponentArea.className = "player";
         setupPlayerInfo(opponentArea, opponentInfo);
@@ -470,6 +476,7 @@ var game = (function () {
         log("Sending message to sprongle.com ...\n" + message, "server_all");
         var x = new XMLHttpRequest();
         x.open('POST', 'http://sprongle.com', true);
+
         x.onload = function () {
             log("Response from sprongle.com:", "server_all");
             log(x.response, "server_all");
@@ -478,9 +485,23 @@ var game = (function () {
             else
                 failureHandler(x);
         };
+
+        x.onreadystatechange = function () {
+            if (x.readyState == 4)
+                if (x.status == 0) {
+                    // Request complete, failed
+                    failureHandler(x);
+                    return;
+                }
+        };
+
+        x.ontimeout = function () {
+            log("XMLHttp request timeout", "server_all");
+        };
+
         try { x.send(message); }
         catch (e) {
-            console.log("server error:");
+            console.log("XMLHttp send error:");
             console.log(e);
         }
     }
@@ -511,6 +532,11 @@ var game = (function () {
             });
     }
 
+    // Simulate the effects of a server tick
+    function simulatedServerTick() {
+        updateBoardUI();
+    }
+
     // Called when a game on the server is successfully started
     function onServerSuccessfulStart() {
         // Actually display the started game
@@ -534,6 +560,12 @@ var game = (function () {
         board = new Chess();
         initializeUI();
         updateBoardUI();
+        setInterval(simulatedServerTick, 1000);
+        if (Math.random() < 0.5) playerInfo.playingAs = "white";
+        else {
+            playerInfo.playingAs = "black";
+            awaitMoveReply();
+        }
     }
 
     // Load a game from a successful GameState request
@@ -545,7 +577,7 @@ var game = (function () {
     // Attempt to start/resume a game on the server,
     // returns true if successful
     function serverStartResumeGame() {
-        const MAX_ATTEMPTS = 1;
+        const MAX_ATTEMPTS = 0;
         var attempts = 0;
         var tryStartResume = function () {
             ++attempts;
