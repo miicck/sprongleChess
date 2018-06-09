@@ -8,7 +8,7 @@ var utils = (function () { // Namespace utils
                 //"server",
                 //"stockfish",
                 //"server_tick",
-                //"server_all",
+                "server_all",
                 //"ui",
                 //"sound"
             ];

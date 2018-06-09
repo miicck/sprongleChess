@@ -453,7 +453,7 @@ var game = (function () {
 
     // Send the server a message
     function sendServerMessage(message, successHandler, failureHandler) {
-        log("Sending message to sprongle.com ...\n" + message, "server_all");
+        
         var x = new XMLHttpRequest();
         x.open('POST', 'http://sprongle.com', true);
 
@@ -479,6 +479,7 @@ var game = (function () {
             log("XMLHttp request timeout", "server_all");
         };
 
+        log("Sending message to sprongle.com ...\n" + message, "server_all");
         try { x.send(message); }
         catch (e) {
             console.log("XMLHttp send error:");
@@ -557,7 +558,7 @@ var game = (function () {
     // Attempt to start/resume a game on the server,
     // returns true if successful
     function serverStartResumeGame() {
-        const MAX_ATTEMPTS = 0;
+        const MAX_ATTEMPTS = 5;
         var attempts = 0;
         var tryStartResume = function () {
             ++attempts;
